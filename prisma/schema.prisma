@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(cuid())
+  githubId         String         @unique
+  username         String         @unique
+  name             String?
+  email            String?        @unique
+  emailVerified    DateTime?
+  image            String?
+  avatar           String?
+  bio              String?
+  githubUrl        String?
+  instagramUrl     String?
+  linkedinUrl      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  
+  posts            Post[]
+  reactions        Reaction[]
+  comments         Comment[]
+  commentLikes     CommentLike[]
+  experiences      Experience[]
+  educations       Education[]
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  conversations    Participant[]
+  accounts         Account[]
+  sessions         Session[]
+  following        Follow[]       @relation("UserFollows")
+  followers        Follow[]       @relation("UserFollowers")
+  
+  notificationSettings NotificationSettings?
+  reports           Report[]       @relation("ReportedUsers")
+  reportedContent   Report[]       @relation("ReportingUsers")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  follower    User     @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+
+  @@unique([followerId, followingId])
+}
+
+model Post {
+  id         String     @id @default(cuid())
+  title      String     @db.VarChar(80)
+  caption    String?    @db.VarChar(300)
+  mediaUrl   String
+  mediaUrls  String[]   @default([])
+  mediaType  MediaType
+  thumbUrl   String?
+  duration   Int?       // seconds for videos
+  tags       String[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId   String
+  
+  reactions  Reaction[]
+  comments   Comment[]
+  reports    Report[]
+}
+
+enum MediaType {
+  IMAGE
+  GIF
+  VIDEO
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  body      String        @db.VarChar(300)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  
+  likes     CommentLike[]
+  reports   Report[]
+  
+  // Self-referential for replies (one level deep only)
+  parent    Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  String?
+  replies   Comment[]     @relation("CommentReplies")
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  @@unique([commentId, userId])
+}
+
+model Experience {
+  id          String   @id @default(cuid())
+  role        String   @db.VarChar(100)
+  company     String   @db.VarChar(100)
+  startDate   String   // YYYY-MM format
+  endDate     String?  // YYYY-MM format, null for present
+  description String?  @db.VarChar(500)
+  order       Int      @default(0) // For custom ordering
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+}
+
+model Education {
+  id        String   @id @default(cuid())
+  school    String   @db.VarChar(100)
+  degree    String   @db.VarChar(100)
+  field     String?  @db.VarChar(100)
+  startYear Int
+  endYear   Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+}
+
+model Conversation {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  participants Participant[]
+  messages     Message[]
+}
+
+model Participant {
+  id             String       @id @default(cuid())
+  lastReadAt     DateTime?    // When user last read the conversation
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  body           String       @db.VarChar(1000)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId       String
+  recipient      User         @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientId    String
+}
+
+model NotificationSettings {
+  id              String   @id @default(cuid())
+  emailReactions  Boolean  @default(true)
+  emailComments   Boolean  @default(true)
+  emailMessages   Boolean  @default(true)
+  pushReactions   Boolean  @default(true)
+  pushComments    Boolean  @default(true)
+  pushMessages    Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String   @unique
+}
+
+model Report {
+  id          String     @id @default(cuid())
+  reason      String     // spam, harassment, inappropriate, copyright, other
+  description String?    @db.VarChar(500)
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+  resolvedAt  DateTime?
+  
+  // The reported content (only one of these should be set)
+  post        Post?      @relation(fields: [postId], references: [id], onDelete: SetNull)
+  postId      String?
+  comment     Comment?   @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  commentId   String?
+  
+  // The reporter and reported user
+  reporter    User       @relation("ReportingUsers", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reported    User       @relation("ReportedUsers", fields: [reportedId], references: [id], onDelete: Cascade)
+  reportedId  String
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}

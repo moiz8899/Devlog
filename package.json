@@ -1,0 +1,52 @@
+{
+  "name": "devlog",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node --project tsconfig.server.json server.ts",
+    "build": "next build",
+    "build:standalone": "next build",
+    "start": "NODE_ENV=production node server.js",
+    "start:ts": "NODE_ENV=production ts-node --project tsconfig.server.json server.ts",
+    "lint": "next lint",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:validate": "ts-node scripts/validate-env.ts",
+    "vercel-build": "prisma generate && next build"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^1.4.0",
+    "@hookform/resolvers": "^3.10.0",
+    "@prisma/client": "^5.7.0",
+    "@types/node": "20.10.5",
+    "@types/react": "18.2.45",
+    "@types/react-dom": "18.2.18",
+    "date-fns": "^3.0.6",
+    "framer-motion": "^10.16.16",
+    "next": "14.0.4",
+    "next-auth": "^4.24.5",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-hook-form": "^7.49.0",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2",
+    "zod": "^3.22.4",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "20.10.5",
+    "@types/react": "18.2.45",
+    "@types/react-dom": "18.2.18",
+    "@types/socket.io": "^3.0.2",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "prisma": "^5.7.0",
+    "tailwindcss": "^3.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "5.3.3"
+  }
+}
