@@ -147,6 +147,9 @@ export default function ConversationView({
     const optimisticMessage: RealtimeMessage = {
       id: clientTempId,
       body: messageBody,
+      storyId: null,
+      storyMediaUrl: null,
+      story: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       conversationId: conversation.id,
