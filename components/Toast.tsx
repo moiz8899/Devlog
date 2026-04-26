@@ -12,6 +12,7 @@ interface Toast {
 
 let toasts: Toast[] = []
 let listeners: ((toasts: Toast[]) => void)[] = []
+const DEFAULT_TOAST_DURATION = 2200
 
 const emitChange = () => {
   listeners.forEach(listener => listener([...toasts]))
@@ -20,23 +21,24 @@ const emitChange = () => {
 export const toast = {
   success: (message: string, options?: { duration?: number }) => {
     const id = Math.random().toString(36).substr(2, 9)
-    toasts.push({ id, message, type: 'success', duration: options?.duration || 3000 })
+    toasts.push({ id, message, type: 'success', duration: options?.duration || DEFAULT_TOAST_DURATION })
     emitChange()
   },
   error: (message: string, options?: { duration?: number }) => {
     const id = Math.random().toString(36).substr(2, 9)
-    toasts.push({ id, message, type: 'error', duration: options?.duration || 3000 })
+    toasts.push({ id, message, type: 'error', duration: options?.duration || DEFAULT_TOAST_DURATION })
     emitChange()
   },
   info: (message: string, options?: { duration?: number }) => {
     const id = Math.random().toString(36).substr(2, 9)
-    toasts.push({ id, message, type: 'info', duration: options?.duration || 3000 })
+    toasts.push({ id, message, type: 'info', duration: options?.duration || DEFAULT_TOAST_DURATION })
     emitChange()
   },
 }
 
 export function Toaster() {
   const [items, setItems] = useState<Toast[]>([])
+  const [pausedToastIds, setPausedToastIds] = useState<string[]>([])
 
   useEffect(() => {
     listeners.push(setItems)
@@ -49,6 +51,18 @@ export function Toaster() {
     toasts = toasts.filter(t => t.id !== id)
     emitChange()
   }
+
+  useEffect(() => {
+    const timers = items
+      .filter(item => !pausedToastIds.includes(item.id))
+      .map(item =>
+        window.setTimeout(() => remove(item.id), item.duration ?? DEFAULT_TOAST_DURATION)
+      )
+
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+    }
+  }, [items, pausedToastIds])
 
   return (
     <div className="fixed bottom-4 right-4 z-50 space-y-2">
@@ -65,10 +79,10 @@ export function Toaster() {
               'bg-surface-2 text-text'
             }`}
             onMouseEnter={() => {
-              // Pause auto-dismiss on hover
+              setPausedToastIds(current => current.includes(toast.id) ? current : [...current, toast.id])
             }}
             onMouseLeave={() => {
-              setTimeout(() => remove(toast.id), toast.duration)
+              setPausedToastIds(current => current.filter(id => id !== toast.id))
             }}
           >
             <p className="text-sm">{toast.message}</p>

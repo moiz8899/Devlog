@@ -257,21 +257,29 @@ export default function PostComposer({ onClose }: PostComposerProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-bg/80 p-4 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95 }}
         animate={{ scale: 1 }}
         exit={{ scale: 0.95 }}
-        className="w-full max-w-2xl rounded-lg border border-border bg-surface shadow-xl"
+        className="my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between border-b border-border p-4">
           <h2 className="text-lg font-medium">new post</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border border-border px-3 py-1 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
+            aria-label="Close post composer"
+          >
+            x
+          </button>
         </div>
 
-        <div className="space-y-4 p-4">
+        <div className="space-y-4 overflow-y-auto p-4">
           <div
             {...getRootProps()}
             className={`cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
