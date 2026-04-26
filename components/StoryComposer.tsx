@@ -57,7 +57,11 @@ export default function StoryComposer({ onClose, onCreated }: StoryComposerProps
     setUploading(true)
     setProgress(0)
     try {
-      const sigRes = await fetch('/api/upload', { method: 'POST' })
+      const sigRes = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ includeUploadPreset: false }),
+      })
       const sig = await sigRes.json()
       if (!sigRes.ok) throw new Error(sig?.error || 'Failed to prepare upload')
       const uploaded: Array<{ url: string; type: 'IMAGE' | 'GIF' | 'VIDEO' }> = []
