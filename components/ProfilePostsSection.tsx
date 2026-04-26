@@ -39,6 +39,16 @@ export default function ProfilePostsSection({
     tagInput: '',
   })
 
+  const normalizeTag = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, '')
+      .replace(/[^a-z0-9-\s]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+
   const openEdit = (post: ProfilePost) => {
     setEditingPostId(post.id)
     setConfirmingId(null)
@@ -61,8 +71,11 @@ export default function ProfilePostsSection({
   }
 
   const handleAddTag = () => {
-    const normalized = editForm.tagInput.trim()
+    const normalized = normalizeTag(editForm.tagInput)
     if (!normalized || editForm.tags.length >= 10 || editForm.tags.includes(normalized)) {
+      if (editForm.tagInput.trim() && !normalized) {
+        toast.error('Tags can only use letters, numbers, and hyphens')
+      }
       return
     }
 

@@ -39,6 +39,16 @@ export default function PostComposer({ onClose }: PostComposerProps) {
     tagInput: '',
   })
 
+  const normalizeTag = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/^#/, '')
+      .replace(/[^a-z0-9-\s]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+
   const uploadMedia = useCallback(async (
     file: File,
     credentials: UploadCredentials,
@@ -186,12 +196,19 @@ export default function PostComposer({ onClose }: PostComposerProps) {
   })
 
   const handleAddTag = () => {
-    if (formData.tagInput.trim() && formData.tags.length < 10) {
+    const normalizedTag = normalizeTag(formData.tagInput)
+
+    if (normalizedTag && formData.tags.length < 10 && !formData.tags.includes(normalizedTag)) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, prev.tagInput.trim()],
+        tags: [...prev.tags, normalizedTag],
         tagInput: '',
       }))
+      return
+    }
+
+    if (formData.tagInput.trim() && !normalizedTag) {
+      toast.error('Tags can only use letters, numbers, and hyphens')
     }
   }
 

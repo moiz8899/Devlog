@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { postSchema } from '@/lib/validations'
+import { z } from 'zod'
 
 export async function GET(req: NextRequest) {
   try {
@@ -114,8 +115,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: post })
   } catch (error) {
     console.error('Failed to create post:', error)
+
+    const errorMessage =
+      error instanceof z.ZodError
+        ? error.errors[0]?.message || 'Invalid post data'
+        : error instanceof Error
+          ? error.message
+          : 'Failed to create post'
+
     return NextResponse.json(
-      { error: 'Failed to create post' },
+      { error: errorMessage },
       { status: 500 }
     )
   }

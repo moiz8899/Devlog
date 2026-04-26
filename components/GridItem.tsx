@@ -80,7 +80,35 @@ function GridItem({
   }
 
   return (
-    <article className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+    <article className="mx-auto w-full max-w-[600px] overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between gap-3 p-3">
+          <Link
+            href={`/u/${post.author.username}`}
+            prefetch
+            className="flex items-center gap-3 hover:text-accent transition-colors"
+          >
+            {post.author.avatar ? (
+              <Image
+                src={post.author.avatar}
+                alt={post.author.username}
+                width={32}
+                height={32}
+                className="rounded-full"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 text-xs">
+                {post.author.username[0]?.toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">@{post.author.username}</p>
+              <p className="text-xs text-muted">{timeAgo(post.createdAt)}</p>
+            </div>
+          </Link>
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={onClick}
@@ -143,32 +171,28 @@ function GridItem({
         )}
       </button>
 
-      <div className="space-y-3 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <Link
-            href={`/u/${post.author.username}`}
-            prefetch
-            className="flex items-center gap-2 hover:text-accent transition-colors"
+      <div className="space-y-3 p-4">
+        <div className="flex items-center gap-5 text-sm">
+          <button
+            type="button"
+            onClick={onLike}
+            disabled={reacting}
+            className={`font-medium transition-colors disabled:opacity-60 ${
+              hasReacted ? 'text-accent' : 'text-muted hover:text-text'
+            }`}
           >
-            {post.author.avatar ? (
-              <Image
-                src={post.author.avatar}
-                alt={post.author.username}
-                width={24}
-                height={24}
-                className="rounded-full"
-              />
-            ) : (
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-2 text-xs">
-                {post.author.username[0]?.toUpperCase()}
-              </div>
-            )}
-            <span className="text-sm">@{post.author.username}</span>
-          </Link>
-          <span className="text-xs text-muted">{timeAgo(post.createdAt)}</span>
+            likes {post._count?.reactions || 0}
+          </button>
+          <button
+            type="button"
+            onClick={onComment}
+            className="font-medium text-muted transition-colors hover:text-text"
+          >
+            comments {post._count?.comments || 0}
+          </button>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <h3 className="line-clamp-2 text-sm font-medium">{post.title}</h3>
           {post.caption && (
             <p className="line-clamp-3 text-sm text-muted">{post.caption}</p>
@@ -189,26 +213,6 @@ function GridItem({
             ))}
           </div>
         )}
-
-        <div className="flex items-center gap-4 text-sm">
-          <button
-            type="button"
-            onClick={onLike}
-            disabled={reacting}
-            className={`transition-colors disabled:opacity-60 ${
-              hasReacted ? 'text-accent' : 'text-muted hover:text-text'
-            }`}
-          >
-            likes {post._count?.reactions || 0}
-          </button>
-          <button
-            type="button"
-            onClick={onComment}
-            className="text-muted transition-colors hover:text-text"
-          >
-            comments {post._count?.comments || 0}
-          </button>
-        </div>
       </div>
     </article>
   )
