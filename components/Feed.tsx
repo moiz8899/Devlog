@@ -131,6 +131,31 @@ export default function Feed({ initialPosts, initialCursor, tag }: FeedProps) {
     }
   }
 
+  const handleAuthorFollowChange = (authorId: string, following: boolean) => {
+    setPosts(prev => {
+      const nextPosts = prev.map(post =>
+        post.author.id === authorId
+          ? {
+              ...post,
+              author: {
+                ...post.author,
+                isFollowedByCurrentUser: following,
+              },
+            }
+          : post
+      )
+
+      if (selectedPost?.author.id === authorId) {
+        const updatedSelectedPost = nextPosts.find(post => post.id === selectedPost.id)
+        if (updatedSelectedPost) {
+          setSelectedPost(updatedSelectedPost)
+        }
+      }
+
+      return nextPosts
+    })
+  }
+
   return (
     <>
       <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
@@ -158,6 +183,7 @@ export default function Feed({ initialPosts, initialCursor, tag }: FeedProps) {
                     onClick={() => setSelectedPost(post)}
                     onLike={() => handleReactionClick(post.id)}
                     onComment={() => setSelectedPost(post)}
+                    onFollowChange={(following) => handleAuthorFollowChange(post.author.id, following)}
                     hasReacted={Boolean(
                       session?.user?.id &&
                         post.reactions?.some(r => r.userId === session.user.id)

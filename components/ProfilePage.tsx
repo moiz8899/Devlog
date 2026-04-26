@@ -1,10 +1,14 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
 import { Experience, Education } from '@prisma/client'
 import ExperienceSection from './ExperienceSection'
 import EducationSection from './EducationSection'
 import ProfileAboutLinks from './ProfileAboutLinks'
 import ProfileAvatar from './ProfileAvatar'
 import ProfilePostsSection from './ProfilePostsSection'
+import FollowButton from './FollowButton'
 
 type ProfilePageProps = {
   user: {
@@ -41,7 +45,6 @@ type ProfilePageProps = {
   isOwner: boolean
   isFollowing: boolean
   canFollow: boolean
-  onToggleFollow?: () => Promise<void>
 }
 
 export default function ProfilePage({
@@ -49,8 +52,10 @@ export default function ProfilePage({
   isOwner,
   isFollowing,
   canFollow,
-  onToggleFollow,
 }: ProfilePageProps) {
+  const [profileCounts, setProfileCounts] = useState(user._count)
+  const [following, setFollowing] = useState(isFollowing)
+
   const socialLinks = [
     {
       label: 'GitHub',
@@ -132,25 +137,29 @@ export default function ProfilePage({
                   <span className="font-medium">{user._count.posts}</span> posts
                 </p>
                 <p>
-                  <span className="font-medium">{user._count.followers}</span> followers
+                  <span className="font-medium">{profileCounts.followers}</span> followers
                 </p>
                 <p>
-                  <span className="font-medium">{user._count.following}</span> following
+                  <span className="font-medium">{profileCounts.following}</span> following
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {canFollow && onToggleFollow && (
-              <form action={onToggleFollow}>
-                <button
-                  type="submit"
-                  className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-surface-2 transition-colors"
-                >
-                  {isFollowing ? 'Unfollow' : 'Follow'}
-                </button>
-              </form>
+            {canFollow && (
+              <FollowButton
+                targetUserId={user.id}
+                initialFollowing={following}
+                variant="profile"
+                onChange={(nextFollowing, payload) => {
+                  setFollowing(nextFollowing)
+                  setProfileCounts(prev => ({
+                    ...prev,
+                    followers: payload.targetUser.followersCount,
+                  }))
+                }}
+              />
             )}
             {isOwner && <span className="text-xs uppercase tracking-wide text-muted">your profile</span>}
           </div>

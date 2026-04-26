@@ -26,17 +26,29 @@ export async function GET(req: NextRequest) {
             username: true,
             name: true,
             avatar: true,
+            githubUrl: true,
+            linkedinUrl: true,
+            followers: currentUserId
+              ? {
+                  where: {
+                    followerId: currentUserId,
+                  },
+                  select: {
+                    id: true,
+                  },
+                }
+              : false,
           },
-      },
-      reactions: {
-        where: currentUserId
-          ? {
-              userId: currentUserId,
-            }
-          : undefined,
-        select: {
-          userId: true,
         },
+        reactions: {
+          where: currentUserId
+            ? {
+                userId: currentUserId,
+              }
+            : undefined,
+          select: {
+            userId: true,
+          },
         },
         _count: {
           select: {
@@ -50,7 +62,16 @@ export async function GET(req: NextRequest) {
     const nextCursor = posts.length === limit ? posts[posts.length - 1].id : null
 
     return NextResponse.json({
-      data: posts,
+      data: posts.map((post) => ({
+        ...post,
+        isOwnPost: post.author.id === currentUserId,
+        author: {
+          ...post.author,
+          isFollowedByCurrentUser: Array.isArray((post.author as any).followers)
+            ? (post.author as any).followers.length > 0
+            : false,
+        },
+      })),
       cursor: nextCursor,
     })
   } catch (error) {

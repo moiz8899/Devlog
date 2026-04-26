@@ -17,13 +17,16 @@ import {
 
 // Extended types with relations
 export type PostWithAuthor = Post & {
-  author: Pick<User, 'id' | 'username' | 'name' | 'avatar' | 'githubUrl' | 'linkedinUrl'>
+  author: Pick<User, 'id' | 'username' | 'name' | 'avatar' | 'githubUrl' | 'linkedinUrl'> & {
+    isFollowedByCurrentUser?: boolean
+  }
   reactions?: Pick<Reaction, 'userId'>[]
   _count?: {
     reactions: number
     comments: number
   }
   isReactedByUser?: boolean
+  isOwnPost?: boolean
 }
 
 export type PostWithDetails = Post & {

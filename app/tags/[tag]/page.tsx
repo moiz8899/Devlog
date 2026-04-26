@@ -23,6 +23,16 @@ export default async function TagPage({
           avatar: true,
           githubUrl: true,
           linkedinUrl: true,
+          followers: currentUserId
+            ? {
+                where: {
+                  followerId: currentUserId,
+                },
+                select: {
+                  id: true,
+                },
+              }
+            : false,
         },
       },
       reactions: {
@@ -52,7 +62,16 @@ export default async function TagPage({
         <h1 className="text-lg font-medium">#{params.tag}</h1>
       </div>
       <Feed 
-        initialPosts={posts} 
+        initialPosts={posts.map((post) => ({
+          ...post,
+          isOwnPost: post.author.id === currentUserId,
+          author: {
+            ...post.author,
+            isFollowedByCurrentUser: Array.isArray((post.author as any).followers)
+              ? (post.author as any).followers.length > 0
+              : false,
+          },
+        }))} 
         initialCursor={nextCursor} 
         tag={params.tag}
       />

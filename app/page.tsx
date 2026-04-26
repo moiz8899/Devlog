@@ -26,6 +26,14 @@ export default async function HomePage() {
           avatar: true,
           githubUrl: true,
           linkedinUrl: true,
+          followers: {
+            where: {
+              followerId: currentUserId,
+            },
+            select: {
+              id: true,
+            },
+          },
         },
       },
       reactions: {
@@ -80,7 +88,14 @@ export default async function HomePage() {
       />
 
       <Feed 
-        initialPosts={posts} 
+        initialPosts={posts.map((post) => ({
+          ...post,
+          isOwnPost: post.author.id === currentUserId,
+          author: {
+            ...post.author,
+            isFollowedByCurrentUser: post.author.followers.length > 0,
+          },
+        }))} 
         initialCursor={nextCursor} 
       />
     </div>

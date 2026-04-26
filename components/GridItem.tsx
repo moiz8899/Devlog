@@ -5,12 +5,14 @@ import Link from 'next/link'
 import { memo, MouseEvent, TouchEvent, useEffect, useMemo, useState } from 'react'
 import { timeAgo } from '@/lib/dates'
 import { PostWithAuthor } from '@/types'
+import FollowButton from './FollowButton'
 
 interface GridItemProps {
   post: PostWithAuthor
   onClick: () => void
   onLike: () => void
   onComment: () => void
+  onFollowChange?: (following: boolean) => void
   hasReacted: boolean
   reacting?: boolean
 }
@@ -20,6 +22,7 @@ function GridItem({
   onClick,
   onLike,
   onComment,
+  onFollowChange,
   hasReacted,
   reacting = false,
 }: GridItemProps) {
@@ -106,6 +109,13 @@ function GridItem({
               <p className="text-xs text-muted">{timeAgo(post.createdAt)}</p>
             </div>
           </Link>
+          {!post.isOwnPost && (
+            <FollowButton
+              targetUserId={post.author.id}
+              initialFollowing={Boolean(post.author.isFollowedByCurrentUser)}
+              onChange={(following) => onFollowChange?.(following)}
+            />
+          )}
         </div>
       </div>
 
