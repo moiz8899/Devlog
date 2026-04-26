@@ -20,6 +20,8 @@ type ProfilePageProps = {
     posts: Array<{
       id: string
       title: string
+      caption: string | null
+      tags: string[]
       mediaUrl: string
       thumbUrl: string | null
       mediaType: 'IMAGE' | 'GIF' | 'VIDEO'
