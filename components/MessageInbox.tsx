@@ -1,19 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { ConversationWithParticipants, MessageWithSender } from '@/types'
 import { timeAgo } from '@/lib/dates'
 import { useMessagesStore } from '@/lib/messages-store'
-import NewMessageModal from './NewMessageModal'
 import UnreadBadge from './UnreadBadge'
 import SkeletonMessages from './SkeletonMessages'
+
+const NewMessageModal = dynamic(() => import('./NewMessageModal'), { ssr: false })
 
 interface MessageInboxProps {
   initialConversations: ConversationWithParticipants[]
   currentUserId: string
+}
+
+type RealtimeMessage = MessageWithSender & {
+  clientTempId?: string
 }
 
 export default function MessageInbox({
@@ -21,15 +27,16 @@ export default function MessageInbox({
   currentUserId,
 }: MessageInboxProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [conversations, setConversations] = useState(initialConversations)
   const [loading, setLoading] = useState(false)
   const [showNewMessage, setShowNewMessage] = useState(false)
-  const { markConversationRead } = useMessagesStore()
+  const { incrementUnread, markConversationRead } = useMessagesStore()
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/conversations')
+      const res = await fetch('/api/conversations', { cache: 'no-store' })
       const { data } = await res.json()
       setConversations(data)
     } catch (error) {
@@ -37,34 +44,72 @@ export default function MessageInbox({
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    setConversations(initialConversations)
+  }, [initialConversations])
 
   useEffect(() => {
     const socket = (window as any).socket
-    if (!socket) return
+    if (!socket) {
+      const poll = window.setInterval(() => {
+        void loadConversations()
+      }, 12000)
+      return () => window.clearInterval(poll)
+    }
 
-    const handleNewMessage = (message: MessageWithSender) => {
+    const handleNewMessage = (message: RealtimeMessage) => {
+      let foundConversation = false
+
       setConversations(prev => {
-        const existing = prev.find(c => c.id === message.conversationId)
-        if (existing) {
-          return prev.map(c => 
-            c.id === message.conversationId
-              ? { ...c, messages: [message, ...(c.messages ?? [])], updatedAt: new Date() }
-              : c
-          ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-        } else {
-          // Fetch the new conversation
-          loadConversations()
+        const next = prev.map(conversation => {
+          if (conversation.id !== message.conversationId) {
+            return conversation
+          }
+
+          foundConversation = true
+
+          const dedupedMessages = (conversation.messages ?? []).filter(existing => {
+            if (existing.id === message.id) {
+              return false
+            }
+
+            return !(message.clientTempId && existing.id === message.clientTempId)
+          })
+
+          return {
+            ...conversation,
+            messages: [message, ...dedupedMessages].slice(0, 1),
+            updatedAt: message.createdAt,
+          }
+        })
+
+        if (!foundConversation) {
           return prev
         }
+
+        return next.sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )
       })
+
+      if (!foundConversation) {
+        void loadConversations()
+        return
+      }
+
+      const isActiveConversation = pathname === `/messages/${message.conversationId}`
+      if (message.senderId !== currentUserId && !isActiveConversation) {
+        incrementUnread(message.conversationId)
+      }
     }
 
     socket.on('new_message', handleNewMessage)
     return () => {
       socket.off('new_message', handleNewMessage)
     }
-  }, [])
+  }, [currentUserId, incrementUnread, loadConversations, pathname])
 
   const getOtherParticipant = (conversation: ConversationWithParticipants) => {
     return conversation.participants.find(p => p.user.id !== currentUserId)?.user
@@ -78,10 +123,11 @@ export default function MessageInbox({
     const participant = conversation.participants.find(p => p.user.id === currentUserId)
     const messages = conversation.messages ?? []
     if (!participant || !participant.lastReadAt) return messages.length
-    
-    return messages.filter(m => 
-      m.senderId !== currentUserId && 
-      new Date(m.createdAt) > new Date(participant.lastReadAt!)
+
+    return messages.filter(
+      m =>
+        m.senderId !== currentUserId &&
+        new Date(m.createdAt) > new Date(participant.lastReadAt!)
     ).length
   }
 
@@ -109,7 +155,7 @@ export default function MessageInbox({
               onClick={() => setShowNewMessage(true)}
               className="block mx-auto mt-2 text-accent hover:underline"
             >
-              start a conversation →
+              start a conversation {'->'}
             </button>
           </div>
         ) : (
@@ -160,9 +206,7 @@ export default function MessageInbox({
                           {lastMessage.senderId === currentUserId ? 'you: ' : ''}
                           {lastMessage.body}
                         </p>
-                        {unreadCount > 0 && (
-                          <UnreadBadge count={unreadCount} />
-                        )}
+                        {unreadCount > 0 && <UnreadBadge count={unreadCount} />}
                       </div>
                     )}
                   </div>
@@ -177,7 +221,7 @@ export default function MessageInbox({
         isOpen={showNewMessage}
         onClose={() => setShowNewMessage(false)}
         onSelect={(conversationId) => {
-          window.location.href = `/messages/${conversationId}`
+          router.push(`/messages/${conversationId}`)
         }}
       />
     </div>

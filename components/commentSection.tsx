@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Dispatch, SetStateAction, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { CommentWithAuthor } from '@/types'
 import CommentItem from './commentItem'
@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 interface CommentSectionProps {
   postId: string
   comments: CommentWithAuthor[]
-  setComments: (comments: CommentWithAuthor[]) => void
+  setComments: Dispatch<SetStateAction<CommentWithAuthor[]>>
   loading: boolean
   currentUserId?: string
 }
@@ -25,8 +25,55 @@ export default function CommentSection({
   const { data: session } = useSession()
   const [replyingTo, setReplyingTo] = useState<CommentWithAuthor | null>(null)
 
+  const getCounts = (comment: CommentWithAuthor) => ({
+    likes: comment._count?.likes || 0,
+    replies: comment._count?.replies || 0,
+  })
+
   const handleAddComment = async (body: string, parentId?: string) => {
     if (!session) return
+
+    const optimisticComment: CommentWithAuthor = {
+      id: `temp-${Date.now()}`,
+      body,
+      postId,
+      authorId: session.user.id,
+      parentId: parentId || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      author: {
+        id: session.user.id,
+        username: session.user.username || 'you',
+        name: session.user.name || null,
+        avatar: session.user.avatar || session.user.image || null,
+      },
+      likes: [],
+      replies: [],
+      _count: {
+        likes: 0,
+        replies: 0,
+      },
+    }
+
+    setComments(prev => {
+      if (parentId) {
+        return prev.map(c =>
+          c.id === parentId
+            ? {
+                ...c,
+                replies: [...(c.replies || []), optimisticComment],
+                _count: {
+                  ...getCounts(c),
+                  replies: getCounts(c).replies + 1,
+                },
+              }
+            : c
+        )
+      }
+
+      return [optimisticComment, ...prev]
+    })
+    setReplyingTo(null)
 
     try {
       const res = await fetch(`/api/posts/${postId}/comments`, {
@@ -39,32 +86,84 @@ export default function CommentSection({
 
       const { data: newComment } = await res.json()
 
-      if (parentId) {
-        // Add reply
-        setComments(prev =>
-          prev.map(c =>
-            c.id === parentId
-              ? {
-                  ...c,
-                  replies: [...(c.replies || []), newComment],
-                  _count: { ...c._count, replies: (c._count?.replies || 0) + 1 },
-                }
-              : c
-          )
-        )
-      } else {
-        // Add top-level comment
-        setComments(prev => [newComment, ...prev])
-      }
-
-      setReplyingTo(null)
+      setComments(prev =>
+        prev.map(c => {
+          if (c.id === optimisticComment.id) {
+            return newComment
+          }
+          if (c.replies?.some(r => r.id === optimisticComment.id)) {
+            return {
+              ...c,
+              replies: c.replies.map(r => (r.id === optimisticComment.id ? newComment : r)),
+            }
+          }
+          return c
+        })
+      )
     } catch (error) {
       console.error('Failed to add comment:', error)
+      // Roll back optimistic comment.
+      setComments(prev =>
+        prev
+          .filter(c => c.id !== optimisticComment.id)
+          .map(c => ({
+            ...c,
+            replies: c.replies?.filter(r => r.id !== optimisticComment.id),
+            _count:
+              parentId && c.id === parentId
+                ? {
+                    ...getCounts(c),
+                    replies: Math.max(getCounts(c).replies - 1, 0),
+                  }
+                : c._count,
+          }))
+      )
     }
   }
 
   const handleLikeComment = async (commentId: string) => {
     if (!session) return
+
+    const rollback = comments
+    setComments(prev =>
+      prev.map(c => {
+        if (c.id === commentId) {
+          const hasLiked = c.likes.some(l => l.userId === session.user.id)
+          return {
+            ...c,
+            likes: hasLiked
+              ? c.likes.filter(l => l.userId !== session.user.id)
+              : [...c.likes, { userId: session.user.id }],
+            _count: {
+              ...getCounts(c),
+              likes: getCounts(c).likes + (hasLiked ? -1 : 1),
+            },
+          }
+        }
+        if (c.replies) {
+          return {
+            ...c,
+            replies: c.replies.map(r => {
+              if (r.id === commentId) {
+                const hasLiked = r.likes.some(l => l.userId === session.user.id)
+                return {
+                  ...r,
+                  likes: hasLiked
+                    ? r.likes.filter(l => l.userId !== session.user.id)
+                    : [...r.likes, { userId: session.user.id }],
+                  _count: {
+                    ...getCounts(r),
+                    likes: getCounts(r).likes + (hasLiked ? -1 : 1),
+                  },
+                }
+              }
+              return r
+            }),
+          }
+        }
+        return c
+      })
+    )
 
     try {
       const res = await fetch(`/api/posts/${postId}/comments/${commentId}/like`, {
@@ -72,53 +171,24 @@ export default function CommentSection({
       })
 
       if (!res.ok) throw new Error('Failed to like comment')
-
-      setComments(prev =>
-        prev.map(c => {
-          if (c.id === commentId) {
-            const hasLiked = c.likes.some(l => l.userId === session.user.id)
-            return {
-              ...c,
-              likes: hasLiked
-                ? c.likes.filter(l => l.userId !== session.user.id)
-                : [...c.likes, { userId: session.user.id }],
-              _count: {
-                ...c._count,
-                likes: (c._count?.likes || 0) + (hasLiked ? -1 : 1),
-              },
-            }
-          }
-          if (c.replies) {
-            return {
-              ...c,
-              replies: c.replies.map(r => {
-                if (r.id === commentId) {
-                  const hasLiked = r.likes.some(l => l.userId === session.user.id)
-                  return {
-                    ...r,
-                    likes: hasLiked
-                      ? r.likes.filter(l => l.userId !== session.user.id)
-                      : [...r.likes, { userId: session.user.id }],
-                    _count: {
-                      ...r._count,
-                      likes: (r._count?.likes || 0) + (hasLiked ? -1 : 1),
-                    },
-                  }
-                }
-                return r
-              }),
-            }
-          }
-          return c
-        })
-      )
     } catch (error) {
       console.error('Failed to like comment:', error)
+      setComments(rollback)
     }
   }
 
   const handleDeleteComment = async (commentId: string) => {
     if (!session) return
+
+    const rollback = comments
+    setComments(prev =>
+      prev
+        .filter(c => c.id !== commentId)
+        .map(c => ({
+          ...c,
+          replies: c.replies?.filter(r => r.id !== commentId),
+        }))
+    )
 
     try {
       const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
@@ -126,17 +196,9 @@ export default function CommentSection({
       })
 
       if (!res.ok) throw new Error('Failed to delete comment')
-
-      setComments(prev =>
-        prev
-          .filter(c => c.id !== commentId)
-          .map(c => ({
-            ...c,
-            replies: c.replies?.filter(r => r.id !== commentId),
-          }))
-      )
     } catch (error) {
       console.error('Failed to delete comment:', error)
+      setComments(rollback)
     }
   }
 

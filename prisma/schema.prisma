@@ -40,6 +40,8 @@ model User {
   notificationSettings NotificationSettings?
   reports           Report[]       @relation("ReportedUsers")
   reportedContent   Report[]       @relation("ReportingUsers")
+  stories           Story[]
+  storyViews        StoryView[]
 }
 
 model Account {
@@ -96,6 +98,7 @@ model Post {
   caption    String?    @db.VarChar(300)
   mediaUrl   String
   mediaUrls  String[]   @default([])
+  mediaTypes MediaType[] @default([])
   mediaType  MediaType
   thumbUrl   String?
   duration   Int?       // seconds for videos
@@ -267,4 +270,33 @@ enum ReportStatus {
   REVIEWED
   RESOLVED
   DISMISSED
+}
+
+model Story {
+  id        String      @id @default(cuid())
+  mediaUrl  String
+  mediaType MediaType
+  caption   String?     @db.VarChar(150)
+  createdAt DateTime    @default(now())
+  expiresAt DateTime
+
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  views     StoryView[]
+
+  @@index([authorId, createdAt])
+  @@index([expiresAt])
+}
+
+model StoryView {
+  id        String   @id @default(cuid())
+  viewedAt  DateTime @default(now())
+
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  storyId   String
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  viewerId  String
+
+  @@unique([storyId, viewerId])
+  @@index([viewerId, viewedAt])
 }

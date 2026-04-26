@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { MouseEvent, useEffect, useMemo, useState } from 'react'
+import { memo, MouseEvent, TouchEvent, useEffect, useMemo, useState } from 'react'
 import { timeAgo } from '@/lib/dates'
 import { PostWithAuthor } from '@/types'
 
@@ -15,7 +15,7 @@ interface GridItemProps {
   reacting?: boolean
 }
 
-export default function GridItem({
+function GridItem({
   post,
   onClick,
   onLike,
@@ -25,23 +25,19 @@ export default function GridItem({
 }: GridItemProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [activeMediaIndex, setActiveMediaIndex] = useState(0)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
-  const imageMediaUrls = useMemo(() => {
-    if (post.mediaType !== 'IMAGE') {
-      return []
-    }
+  const mediaItems = useMemo(() => {
+    const urls = post.mediaUrls?.length ? post.mediaUrls : [post.mediaUrl]
+    const types = post.mediaTypes?.length ? post.mediaTypes : [post.mediaType]
+    return urls.map((url, index) => ({
+      url,
+      type: types[index] || post.mediaType,
+    }))
+  }, [post.mediaType, post.mediaTypes, post.mediaUrl, post.mediaUrls])
 
-    if (post.mediaUrls?.length) {
-      return post.mediaUrls
-    }
-
-    return [post.mediaUrl]
-  }, [post.mediaType, post.mediaUrls, post.mediaUrl])
-
-  const hasCarousel = post.mediaType === 'IMAGE' && imageMediaUrls.length > 1
-  const currentImageUrl = hasCarousel
-    ? imageMediaUrls[activeMediaIndex] || imageMediaUrls[0]
-    : post.thumbUrl || post.mediaUrl
+  const hasCarousel = mediaItems.length > 1
+  const activeItem = mediaItems[activeMediaIndex] || mediaItems[0]
 
   useEffect(() => {
     setActiveMediaIndex(0)
@@ -60,8 +56,27 @@ export default function GridItem({
     event.stopPropagation()
     setImageLoaded(false)
     setActiveMediaIndex(prev =>
-      prev < imageMediaUrls.length - 1 ? prev + 1 : prev
+      prev < mediaItems.length - 1 ? prev + 1 : prev
     )
+  }
+
+  const handleTouchStart = (event: TouchEvent<HTMLButtonElement>) => {
+    if (!hasCarousel) return
+    setTouchStartX(event.changedTouches[0].clientX)
+  }
+
+  const handleTouchEnd = (event: TouchEvent<HTMLButtonElement>) => {
+    if (!hasCarousel || touchStartX === null) return
+    const deltaX = event.changedTouches[0].clientX - touchStartX
+    const swipeThreshold = 40
+
+    if (deltaX > swipeThreshold) {
+      setActiveMediaIndex(prev => (prev > 0 ? prev - 1 : prev))
+    } else if (deltaX < -swipeThreshold) {
+      setActiveMediaIndex(prev => (prev < mediaItems.length - 1 ? prev + 1 : prev))
+    }
+
+    setTouchStartX(null)
   }
 
   return (
@@ -69,11 +84,13 @@ export default function GridItem({
       <button
         type="button"
         onClick={onClick}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         className="relative block aspect-square w-full overflow-hidden bg-surface-2"
       >
-        {post.mediaType === 'VIDEO' ? (
+        {activeItem?.type === 'VIDEO' ? (
           <video
-            src={post.thumbUrl || post.mediaUrl}
+            src={activeItem.url}
             className="h-full w-full object-cover"
             muted
             playsInline
@@ -81,11 +98,11 @@ export default function GridItem({
           />
         ) : (
           <Image
-            src={currentImageUrl}
+            src={activeItem?.url || post.mediaUrl}
             alt={post.title}
             fill
             sizes="(max-width: 768px) 100vw, 640px"
-            key={currentImageUrl}
+            key={activeItem?.url || post.mediaUrl}
             className={`object-cover transition-opacity duration-300 ${
               imageLoaded ? 'opacity-100' : 'opacity-0'
             }`}
@@ -100,26 +117,26 @@ export default function GridItem({
               onClick={showPreviousImage}
               disabled={activeMediaIndex === 0}
               aria-label="Previous image"
-              className="absolute left-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm text-text transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40"
+              className="absolute left-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm text-text transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40 lg:flex"
             >
               {'<'}
             </button>
             <button
               type="button"
               onClick={showNextImage}
-              disabled={activeMediaIndex === imageMediaUrls.length - 1}
+              disabled={activeMediaIndex === mediaItems.length - 1}
               aria-label="Next image"
-              className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm text-text transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40"
+              className="absolute right-2 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm text-text transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40 lg:flex"
             >
               {'>'}
             </button>
             <div className="absolute right-2 top-2 rounded bg-bg/75 px-2 py-1 text-xs">
-              {activeMediaIndex + 1}/{imageMediaUrls.length}
+              {activeMediaIndex + 1}/{mediaItems.length}
             </div>
           </>
         )}
 
-        {post.mediaType === 'VIDEO' && post.duration && (
+        {activeItem?.type === 'VIDEO' && post.duration && (
           <div className="absolute bottom-2 right-2 rounded bg-bg/80 px-2 py-1 text-xs font-mono">
             {Math.floor(post.duration / 60)}:{(post.duration % 60).toString().padStart(2, '0')}
           </div>
@@ -130,6 +147,7 @@ export default function GridItem({
         <div className="flex items-center justify-between gap-3">
           <Link
             href={`/u/${post.author.username}`}
+            prefetch
             className="flex items-center gap-2 hover:text-accent transition-colors"
           >
             {post.author.avatar ? (
@@ -163,6 +181,7 @@ export default function GridItem({
               <Link
                 key={tag}
                 href={`/tags/${tag}`}
+                prefetch
                 className="text-xs text-muted hover:text-accent transition-colors"
               >
                 #{tag}
@@ -194,3 +213,5 @@ export default function GridItem({
     </article>
   )
 }
+
+export default memo(GridItem)

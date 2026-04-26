@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { TouchEvent, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -40,23 +40,21 @@ export default function Lightbox({
   const [loading, setLoading] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [activeMediaIndex, setActiveMediaIndex] = useState(0)
+  const [touchStartX, setTouchStartX] = useState<number | null>(null)
 
   const hasReacted = Boolean(
     post.reactions?.some(r => r.userId === currentUserId)
   )
-  const imageMediaUrls = useMemo(() => {
-    if (post.mediaType !== 'IMAGE') {
-      return []
-    }
-
-    if (post.mediaUrls?.length) {
-      return post.mediaUrls
-    }
-
-    return [post.mediaUrl]
-  }, [post.mediaType, post.mediaUrls, post.mediaUrl])
-  const hasMediaCarousel = post.mediaType === 'IMAGE' && imageMediaUrls.length > 1
-  const currentImageUrl = imageMediaUrls[activeMediaIndex] || post.mediaUrl
+  const mediaItems = useMemo(() => {
+    const urls = post.mediaUrls?.length ? post.mediaUrls : [post.mediaUrl]
+    const types = post.mediaTypes?.length ? post.mediaTypes : [post.mediaType]
+    return urls.map((url, index) => ({
+      url,
+      type: types[index] || post.mediaType,
+    }))
+  }, [post.mediaType, post.mediaTypes, post.mediaUrl, post.mediaUrls])
+  const hasMediaCarousel = mediaItems.length > 1
+  const activeMedia = mediaItems[activeMediaIndex] || mediaItems[0]
 
   useEffect(() => {
     setActiveMediaIndex(0)
@@ -82,7 +80,7 @@ export default function Lightbox({
       }
 
       if (event.key === 'ArrowRight') {
-        if (hasMediaCarousel && activeMediaIndex < imageMediaUrls.length - 1) {
+        if (hasMediaCarousel && activeMediaIndex < mediaItems.length - 1) {
           setActiveMediaIndex(prev => prev + 1)
           return
         }
@@ -100,7 +98,7 @@ export default function Lightbox({
     hasMediaCarousel,
     hasNext,
     hasPrev,
-    imageMediaUrls.length,
+    mediaItems.length,
     onClose,
     onNext,
     onPrev,
@@ -187,6 +185,25 @@ export default function Lightbox({
     }
   }
 
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (!hasMediaCarousel) return
+    setTouchStartX(event.changedTouches[0].clientX)
+  }
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    if (!hasMediaCarousel || touchStartX === null) return
+    const deltaX = event.changedTouches[0].clientX - touchStartX
+    const swipeThreshold = 40
+
+    if (deltaX > swipeThreshold) {
+      setActiveMediaIndex(prev => (prev > 0 ? prev - 1 : prev))
+    } else if (deltaX < -swipeThreshold) {
+      setActiveMediaIndex(prev => (prev < mediaItems.length - 1 ? prev + 1 : prev))
+    }
+
+    setTouchStartX(null)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -203,7 +220,7 @@ export default function Lightbox({
             onPrev()
           }}
           aria-label="Previous post"
-          className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/80 transition-colors hover:bg-surface"
+          className="absolute left-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/80 transition-colors hover:bg-surface lg:flex"
         >
           {'<'}
         </button>
@@ -217,7 +234,7 @@ export default function Lightbox({
             onNext()
           }}
           aria-label="Next post"
-          className="absolute right-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/80 transition-colors hover:bg-surface"
+          className="absolute right-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-surface/80 transition-colors hover:bg-surface lg:flex"
         >
           {'>'}
         </button>
@@ -233,34 +250,41 @@ export default function Lightbox({
       </button>
 
       <div
-        className="flex min-h-0 flex-1 flex-col lg:flex-row"
+        className="flex min-h-0 flex-1 flex-col pt-14 lg:flex-row lg:pt-0"
         onClick={event => event.stopPropagation()}
       >
-        <div className="flex min-h-[50vh] flex-1 items-center justify-center bg-surface p-4 lg:min-h-0 lg:p-8">
+        <div className="flex min-h-[42vh] flex-1 items-center justify-center bg-surface p-3 sm:min-h-[50vh] sm:p-4 lg:min-h-0 lg:p-8">
           <motion.div
             layoutId={`post-${post.id}`}
             className="relative flex h-full w-full items-center justify-center"
           >
-            {post.mediaType === 'VIDEO' ? (
-              <VideoPlayer src={post.mediaUrl} poster={post.thumbUrl || undefined} />
-            ) : post.mediaType === 'GIF' ? (
-              <img
-                src={post.mediaUrl}
+            {activeMedia?.type === 'VIDEO' ? (
+              <VideoPlayer src={activeMedia.url} poster={post.thumbUrl || undefined} />
+            ) : activeMedia?.type === 'GIF' ? (
+              <Image
+                src={activeMedia.url}
                 alt={post.title}
+                width={1200}
+                height={1200}
+                unoptimized
                 className="max-h-full max-w-full object-contain"
               />
             ) : (
-              <div className="relative flex h-full w-full items-center justify-center">
+              <div
+                className="relative flex h-full w-full items-center justify-center"
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
                 <AnimatePresence initial={false} mode="wait">
                   <motion.div
-                    key={`${post.id}-${currentImageUrl}`}
+                    key={`${post.id}-${activeMedia?.url || post.mediaUrl}`}
                     initial={{ opacity: 0.6 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0.6 }}
                     className="relative flex h-full w-full items-center justify-center"
                   >
                     <Image
-                      src={currentImageUrl}
+                      src={activeMedia?.url || post.mediaUrl}
                       alt={post.title}
                       width={1200}
                       height={1200}
@@ -280,7 +304,7 @@ export default function Lightbox({
                       }}
                       disabled={activeMediaIndex === 0}
                       aria-label="Previous image"
-                      className="absolute left-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="absolute left-3 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40 lg:flex"
                     >
                       {'<'}
                     </button>
@@ -289,22 +313,22 @@ export default function Lightbox({
                       onClick={(event) => {
                         event.stopPropagation()
                         setActiveMediaIndex(prev =>
-                          prev < imageMediaUrls.length - 1 ? prev + 1 : prev
+                          prev < mediaItems.length - 1 ? prev + 1 : prev
                         )
                       }}
-                      disabled={activeMediaIndex === imageMediaUrls.length - 1}
+                      disabled={activeMediaIndex === mediaItems.length - 1}
                       aria-label="Next image"
-                      className="absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="absolute right-3 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-bg/70 text-sm transition hover:bg-bg/85 disabled:cursor-not-allowed disabled:opacity-40 lg:flex"
                     >
                       {'>'}
                     </button>
                     <div className="absolute right-3 top-3 rounded bg-bg/75 px-2 py-1 text-xs">
-                      {activeMediaIndex + 1}/{imageMediaUrls.length}
+                      {activeMediaIndex + 1}/{mediaItems.length}
                     </div>
                     <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-bg/60 px-2 py-1">
-                      {imageMediaUrls.map((url, index) => (
+                      {mediaItems.map((item, index) => (
                         <button
-                          key={`${url}-${index}`}
+                          key={`${item.url}-${index}`}
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation()
@@ -324,8 +348,8 @@ export default function Lightbox({
           </motion.div>
         </div>
 
-        <div className="flex w-full flex-col border-border bg-surface lg:w-96 lg:border-l">
-          <div className="border-b border-border p-4">
+        <div className="flex h-[58vh] w-full flex-col border-border bg-surface lg:h-auto lg:w-[26rem] lg:border-l">
+          <div className="border-b border-border p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <Link href={`/u/${post.author.username}`} className="group flex items-center gap-2">
                 {post.author.avatar && (
@@ -379,7 +403,7 @@ export default function Lightbox({
             )}
           </div>
 
-          <div className="border-b border-border p-4">
+          <div className="border-b border-border p-3 sm:p-4">
             <h2 className="mb-2 font-display text-2xl">{post.title}</h2>
             {post.caption && <p className="mb-3 text-sm text-muted">{post.caption}</p>}
 
@@ -403,7 +427,7 @@ export default function Lightbox({
                 count={post._count?.reactions || 0}
                 onClick={handleReaction}
               />
-              <span className="text-muted">comments {post._count?.comments || 0}</span>
+              <span className="text-sm text-muted">comments {post._count?.comments || 0}</span>
               <button
                 type="button"
                 onClick={handleCopyLink}

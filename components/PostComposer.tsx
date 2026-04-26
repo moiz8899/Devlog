@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useCallback, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useDropzone } from 'react-dropzone'
@@ -15,6 +16,13 @@ type UploadedMedia = {
   type: 'IMAGE' | 'GIF' | 'VIDEO'
   thumbUrl?: string
   duration?: number
+}
+
+type UploadCredentials = {
+  signature: string
+  timestamp: number
+  cloudName: string
+  apiKey: string
 }
 
 export default function PostComposer({ onClose }: PostComposerProps) {
@@ -33,6 +41,7 @@ export default function PostComposer({ onClose }: PostComposerProps) {
 
   const uploadMedia = useCallback(async (
     file: File,
+    credentials: UploadCredentials,
     onProgress?: (progress: number) => void
   ): Promise<UploadedMedia> => {
     const isImage = file.type.startsWith('image/')
@@ -55,30 +64,15 @@ export default function PostComposer({ onClose }: PostComposerProps) {
       throw new Error('Videos must be less than 100MB')
     }
 
-    const sigRes = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ includeUploadPreset: false }),
-    })
-    const sigPayload = await sigRes.json().catch(() => null)
-    if (!sigRes.ok) {
-      throw new Error(sigPayload?.error || 'Failed to get upload signature')
-    }
-
-    const { signature, timestamp, cloudName, apiKey } = sigPayload || {}
-    if (!signature || !timestamp || !cloudName || !apiKey) {
-      throw new Error('Upload configuration is incomplete')
-    }
-
     return new Promise<UploadedMedia>((resolve, reject) => {
       const uploadFormData = new FormData()
       uploadFormData.append('file', file)
-      uploadFormData.append('api_key', apiKey)
-      uploadFormData.append('timestamp', timestamp.toString())
-      uploadFormData.append('signature', signature)
+      uploadFormData.append('api_key', credentials.apiKey)
+      uploadFormData.append('timestamp', credentials.timestamp.toString())
+      uploadFormData.append('signature', credentials.signature)
 
       const xhr = new XMLHttpRequest()
-      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`)
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${credentials.cloudName}/auto/upload`)
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -115,34 +109,59 @@ export default function PostComposer({ onClose }: PostComposerProps) {
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!acceptedFiles.length) return
 
-    const containsVideo = acceptedFiles.some(file => file.type.startsWith('video/'))
-    const containsGif = acceptedFiles.some(file => file.type === 'image/gif')
-    const containsNonImage = acceptedFiles.some(file => !file.type.startsWith('image/'))
-
-    if (acceptedFiles.length > 1 && (containsVideo || containsGif || containsNonImage)) {
-      toast.error('Carousel posts support images only. GIF/video must be uploaded alone')
-      return
-    }
-
     setUploading(true)
     setUploadProgress(0)
 
     try {
-      const uploaded: UploadedMedia[] = []
-      for (let i = 0; i < acceptedFiles.length; i += 1) {
-        const file = acceptedFiles[i]
-        const item = await uploadMedia(file, (itemProgress) => {
-          const overallProgress = ((i + itemProgress / 100) / acceptedFiles.length) * 100
-          setUploadProgress(overallProgress)
-        })
-        uploaded.push(item)
+      const sigRes = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ includeUploadPreset: false }),
+      })
+      const sigPayload = await sigRes.json().catch(() => null)
+      if (!sigRes.ok) {
+        throw new Error(sigPayload?.error || 'Failed to get upload signature')
       }
+
+      const credentials: UploadCredentials = {
+        signature: sigPayload?.signature,
+        timestamp: sigPayload?.timestamp,
+        cloudName: sigPayload?.cloudName,
+        apiKey: sigPayload?.apiKey,
+      }
+
+      if (!credentials.signature || !credentials.timestamp || !credentials.cloudName || !credentials.apiKey) {
+        throw new Error('Upload configuration is incomplete')
+      }
+
+      const progressByFile = new Array(acceptedFiles.length).fill(0)
+      const uploaded = new Array<UploadedMedia>(acceptedFiles.length)
+      let nextIndex = 0
+      const maxConcurrentUploads = Math.min(3, acceptedFiles.length)
+
+      const runUploadWorker = async () => {
+        while (nextIndex < acceptedFiles.length) {
+          const fileIndex = nextIndex
+          nextIndex += 1
+          const item = await uploadMedia(acceptedFiles[fileIndex], credentials, (itemProgress) => {
+            progressByFile[fileIndex] = itemProgress
+            const totalProgress =
+              progressByFile.reduce((sum, value) => sum + value, 0) / acceptedFiles.length
+            setUploadProgress(totalProgress)
+          })
+          uploaded[fileIndex] = item
+        }
+      }
+
+      await Promise.all(
+        Array.from({ length: maxConcurrentUploads }, () => runUploadWorker())
+      )
 
       setMediaItems(uploaded)
       setActiveMediaIndex(0)
 
       if (uploaded.length > 1) {
-        toast.success(`${uploaded.length} images uploaded`)
+        toast.success(`${uploaded.length} media items uploaded`)
       } else {
         toast.success('Media uploaded')
       }
@@ -156,7 +175,7 @@ export default function PostComposer({ onClose }: PostComposerProps) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     onDropRejected: () => {
-      toast.error('Upload up to 10 images, or a single GIF/video')
+      toast.error('Upload up to 10 images/videos/GIFs')
     },
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
@@ -194,10 +213,9 @@ export default function PostComposer({ onClose }: PostComposerProps) {
     }
 
     const primaryMedia = mediaItems[0]
-    const mediaType: 'IMAGE' | 'GIF' | 'VIDEO' =
-      mediaItems.length > 1 ? 'IMAGE' : primaryMedia.type
-    const mediaUrls =
-      mediaType === 'IMAGE' ? mediaItems.map(item => item.url) : undefined
+    const mediaType: 'IMAGE' | 'GIF' | 'VIDEO' = primaryMedia.type
+    const mediaUrls = mediaItems.map(item => item.url)
+    const mediaTypes = mediaItems.map(item => item.type)
 
     setPosting(true)
     try {
@@ -209,6 +227,7 @@ export default function PostComposer({ onClose }: PostComposerProps) {
           caption: formData.caption.trim() || undefined,
           mediaUrl: primaryMedia.url,
           mediaUrls,
+          mediaTypes,
           mediaType,
           thumbUrl: mediaType === 'VIDEO' ? primaryMedia.thumbUrl : undefined,
           duration: mediaType === 'VIDEO' ? primaryMedia.duration : undefined,
@@ -280,9 +299,12 @@ export default function PostComposer({ onClose }: PostComposerProps) {
                       controls
                     />
                   ) : (
-                    <img
+                    <Image
                       src={activeMedia.url}
                       alt="Post preview"
+                      width={1280}
+                      height={720}
+                      unoptimized
                       className="h-full w-full object-contain"
                     />
                   )}
@@ -304,11 +326,23 @@ export default function PostComposer({ onClose }: PostComposerProps) {
                             : 'border-border'
                         }`}
                       >
-                        <img
-                          src={item.url}
-                          alt={`Preview ${index + 1}`}
-                          className="h-full w-full object-cover"
-                        />
+                        {item.type === 'VIDEO' ? (
+                          <video
+                            src={item.url}
+                            className="h-full w-full object-cover"
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <Image
+                            src={item.url}
+                            alt={`Preview ${index + 1}`}
+                            width={48}
+                            height={48}
+                            unoptimized
+                            className="h-full w-full object-cover"
+                          />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -316,7 +350,7 @@ export default function PostComposer({ onClose }: PostComposerProps) {
 
                 <p className="text-xs text-muted">
                   {mediaItems.length > 1
-                    ? `carousel with ${mediaItems.length} images - click to replace`
+                    ? `carousel with ${mediaItems.length} media items - click to replace`
                     : 'click to replace media'}
                 </p>
               </div>
@@ -324,7 +358,7 @@ export default function PostComposer({ onClose }: PostComposerProps) {
               <div>
                 <p className="mb-2 text-muted">drag and drop or click to upload</p>
                 <p className="text-xs text-muted">
-                  upload up to 10 images, or a single GIF/video
+                  upload up to 10 images/videos/GIFs
                 </p>
               </div>
             )}

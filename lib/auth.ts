@@ -57,8 +57,16 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       const userId = (token.id || token.sub || '') as string
-      const dbUser = userId
-        ? await prisma.user.findUnique({
+      let dbUser: {
+        username: string
+        name: string | null
+        avatar: string | null
+        image: string | null
+      } | null = null
+
+      if (userId) {
+        try {
+          dbUser = await prisma.user.findUnique({
             where: { id: userId },
             select: {
               username: true,
@@ -67,7 +75,11 @@ export const authOptions: NextAuthOptions = {
               image: true,
             },
           })
-        : null
+        } catch (error) {
+          // Keep session usable when DB has a transient connectivity issue.
+          console.warn('[next-auth][session] falling back to token due to DB error')
+        }
+      }
 
       return {
         ...session,

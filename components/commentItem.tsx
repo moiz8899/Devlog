@@ -30,7 +30,7 @@ export default function CommentItem({
   return (
     <div className={`group ${depth > 0 ? 'border-l-2 border-border pl-3' : ''}`}>
       <div className="flex items-start gap-2">
-        <Link href={`/u/${comment.author.username}`} className="shrink-0">
+        <Link href={`/u/${comment.author.username}`} prefetch className="shrink-0">
           {comment.author.avatar ? (
             <Image
               src={comment.author.avatar}
@@ -48,6 +48,7 @@ export default function CommentItem({
           <div className="flex items-center gap-2 flex-wrap">
             <Link
               href={`/u/${comment.author.username}`}
+              prefetch
               className="text-sm font-medium hover:text-accent transition-colors"
             >
               {comment.author.username}

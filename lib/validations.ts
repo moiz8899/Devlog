@@ -15,6 +15,9 @@ export const postSchema = z.object({
   )
     .max(10, 'Cannot upload more than 10 images')
     .optional(),
+  mediaTypes: z.array(z.enum(['IMAGE', 'GIF', 'VIDEO']))
+    .max(10, 'Cannot upload more than 10 media items')
+    .optional(),
   mediaType: z.enum(['IMAGE', 'GIF', 'VIDEO']),
   thumbUrl: z.string()
     .url('Invalid thumbnail URL')
@@ -30,6 +33,36 @@ export const postSchema = z.object({
       .regex(/^[a-zA-Z0-9-]+$/, 'Tag can only contain letters, numbers, and hyphens')
   ).max(10, 'Cannot have more than 10 tags'),
 })
+
+export const storySchema = z
+  .object({
+    mediaUrl: z.string().url('Invalid media URL').optional(),
+    mediaType: z.enum(['IMAGE', 'GIF', 'VIDEO']).optional(),
+    mediaItems: z
+      .array(
+        z.object({
+          mediaUrl: z.string().url('Invalid media URL'),
+          mediaType: z.enum(['IMAGE', 'GIF', 'VIDEO']),
+        })
+      )
+      .max(10, 'Cannot upload more than 10 story items')
+      .optional(),
+    caption: z
+      .string()
+      .max(150, 'Caption must be less than 150 characters')
+      .optional(),
+  })
+  .refine(
+    (data) =>
+      Boolean(
+        data.mediaItems?.length ||
+          (data.mediaUrl && data.mediaType)
+      ),
+    {
+      message: 'Provide mediaUrl/mediaType or mediaItems',
+      path: ['mediaItems'],
+    }
+  )
 
 // Comment validation
 export const commentSchema = z.object({
@@ -228,6 +261,7 @@ export const reportSchema = z.object({
 
 // Type exports for use in components
 export type PostInput = z.infer<typeof postSchema>
+export type StoryInput = z.infer<typeof storySchema>
 export type CommentInput = z.infer<typeof commentSchema>
 export type UserProfileInput = z.infer<typeof userProfileSchema>
 export type ExperienceInput = z.infer<typeof experienceSchema>

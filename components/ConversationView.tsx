@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ConversationWithParticipants, MessageWithSender } from '@/types'
-import { timeAgo } from '@/lib/dates'
 import { useMessagesStore } from '@/lib/messages-store'
 import MessageBubble from './MessageBubble'
 
@@ -13,38 +12,117 @@ interface ConversationViewProps {
   currentUserId: string
 }
 
-export default function ConversationView({ conversation, currentUserId }: ConversationViewProps) {
-  const [messages, setMessages] = useState<MessageWithSender[]>(conversation.messages ?? [])
+type RealtimeMessage = MessageWithSender & {
+  clientTempId?: string
+}
+
+export default function ConversationView({
+  conversation,
+  currentUserId,
+}: ConversationViewProps) {
+  const [messages, setMessages] = useState<RealtimeMessage[]>(conversation.messages ?? [])
   const [inputValue, setInputValue] = useState('')
   const [sending, setSending] = useState(false)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const shouldStickToBottomRef = useRef(true)
+  const lastConversationIdRef = useRef(conversation.id)
   const { markConversationRead } = useMessagesStore()
 
-  const otherParticipant = conversation.participants.find(p => p.user.id !== currentUserId)?.user
+  const currentParticipant = useMemo(
+    () => conversation.participants.find(p => p.user.id === currentUserId)?.user,
+    [conversation.participants, currentUserId]
+  )
+  const otherParticipant = useMemo(
+    () => conversation.participants.find(p => p.user.id !== currentUserId)?.user,
+    [conversation.participants, currentUserId]
+  )
 
   useEffect(() => {
-    scrollToBottom()
+    setMessages(conversation.messages ?? [])
+  }, [conversation.id, conversation.messages])
+
+  useEffect(() => {
     markConversationRead(conversation.id)
+  }, [conversation.id, markConversationRead])
+
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const updateStickiness = () => {
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight
+      shouldStickToBottomRef.current = distanceFromBottom < 80
+    }
+
+    updateStickiness()
+    container.addEventListener('scroll', updateStickiness, { passive: true })
+    return () => container.removeEventListener('scroll', updateStickiness)
+  }, [])
+
+  useEffect(() => {
+    const changedConversation = lastConversationIdRef.current !== conversation.id
+    const behavior = changedConversation ? 'auto' : 'smooth'
+
+    if (changedConversation || shouldStickToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior })
+    }
+
+    lastConversationIdRef.current = conversation.id
   }, [conversation.id, messages])
 
   useEffect(() => {
     const socket = (window as any).socket
-    if (!socket) return
+    if (!socket) {
+      const poll = window.setInterval(async () => {
+        try {
+          const res = await fetch(`/api/conversations/${conversation.id}/messages`, {
+            cache: 'no-store',
+          })
+          if (!res.ok) return
+
+          const { data } = await res.json()
+          setMessages(prev => {
+            const previousIds = prev.map(message => message.id).join(',')
+            const nextIds = (data ?? []).map((message: RealtimeMessage) => message.id).join(',')
+            return previousIds === nextIds ? prev : data
+          })
+        } catch (error) {
+          console.error('Failed to refresh messages:', error)
+        }
+      }, 5000)
+
+      return () => window.clearInterval(poll)
+    }
 
     socket.emit('join_conversation', { conversationId: conversation.id })
 
-    const handleNewMessage = (message: MessageWithSender) => {
-      if (message.conversationId === conversation.id) {
-        setMessages(prev => [...prev, message])
-        if (message.senderId !== currentUserId) {
-          markConversationRead(conversation.id)
-        }
+    const handleNewMessage = (message: RealtimeMessage) => {
+      if (message.conversationId !== conversation.id) {
+        return
+      }
+
+      setMessages(prev => {
+        const deduped = prev.filter(existing => {
+          if (existing.id === message.id) {
+            return false
+          }
+
+          return !(message.clientTempId && existing.id === message.clientTempId)
+        })
+
+        return [...deduped, message]
+      })
+
+      if (message.senderId !== currentUserId) {
+        markConversationRead(conversation.id)
       }
     }
 
-    const handleMessageRead = ({ userId, lastReadAt }: { userId: string; lastReadAt: Date }) => {
-      // Update read receipts if needed
+    const handleMessageRead = () => {
+      // Reserved for read receipts.
     }
 
     socket.on('new_message', handleNewMessage)
@@ -57,39 +135,33 @@ export default function ConversationView({ conversation, currentUserId }: Conver
     }
   }, [conversation.id, currentUserId, markConversationRead])
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
   const handleSend = async () => {
-    if (!inputValue.trim() || sending) return
-    if (!otherParticipant) return
+    if (!inputValue.trim() || sending || !otherParticipant || !currentParticipant) return
 
     setSending(true)
-    const messageBody = inputValue.trim()
+    shouldStickToBottomRef.current = true
 
-    // Optimistic update
-    const optimisticMessage: MessageWithSender = {
-      id: `temp-${Date.now()}`,
+    const messageBody = inputValue.trim()
+    const clientTempId = `temp-${Date.now()}`
+
+    const optimisticMessage: RealtimeMessage = {
+      id: clientTempId,
       body: messageBody,
       createdAt: new Date(),
       updatedAt: new Date(),
       conversationId: conversation.id,
       senderId: currentUserId,
       recipientId: otherParticipant.id,
-      sender: {
-        id: currentUserId,
-        username: (window as any).currentUsername,
-        name: (window as any).currentName,
-        avatar: (window as any).currentAvatar,
-      },
+      sender: currentParticipant,
       recipient: {
         id: otherParticipant.id,
         username: otherParticipant.username,
         name: otherParticipant.name,
         avatar: otherParticipant.avatar,
       },
+      clientTempId,
     }
+
     setMessages(prev => [...prev, optimisticMessage])
     setInputValue('')
     if (inputRef.current) {
@@ -100,19 +172,19 @@ export default function ConversationView({ conversation, currentUserId }: Conver
       const res = await fetch(`/api/conversations/${conversation.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: messageBody }),
+        body: JSON.stringify({ body: messageBody, clientTempId }),
       })
 
       if (!res.ok) throw new Error('Failed to send message')
 
       const { data: sentMessage } = await res.json()
-      
-      // Replace optimistic message with real one
-      setMessages(prev => prev.map(m => 
-        m.id === optimisticMessage.id ? sentMessage : m
-      ))
+
+      setMessages(prev => {
+        const withoutOptimistic = prev.filter(m => m.id !== optimisticMessage.id)
+        const alreadyPresent = withoutOptimistic.some(m => m.id === sentMessage.id)
+        return alreadyPresent ? withoutOptimistic : [...withoutOptimistic, sentMessage]
+      })
     } catch (error) {
-      // Remove optimistic message on error
       setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id))
       console.error('Failed to send message:', error)
     } finally {
@@ -137,7 +209,6 @@ export default function ConversationView({ conversation, currentUserId }: Conver
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
       <div className="p-4 border-b border-border flex items-center gap-3">
         <Link href={`/u/${otherParticipant.username}`} className="flex items-center gap-3 group">
           {otherParticipant.avatar ? (
@@ -162,11 +233,10 @@ export default function ConversationView({ conversation, currentUserId }: Conver
         </Link>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => {
-          const showAvatar = index === 0 || 
-            messages[index - 1].senderId !== message.senderId
+          const showAvatar =
+            index === 0 || messages[index - 1].senderId !== message.senderId
 
           return (
             <MessageBubble
@@ -181,7 +251,6 @@ export default function ConversationView({ conversation, currentUserId }: Conver
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="p-4 border-t border-border">
         <div className="flex items-end gap-2">
           <textarea

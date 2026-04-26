@@ -1,7 +1,35 @@
-# environment variables
+# dependencies
+node_modules/
+
+# next.js build output
+.next/
+out/
+
+# runtime and build artifacts
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# local environment
 .env
 .env.local
 .env.production
 .env.test
 .env.*.local
-node_modules
+
+# local auth/debug artifacts
+authcookies.txt
+login-cookies.txt
+login.html
+oauth-debug.log
+tmp-dev.log
+tmp-dev-3001.log
+
+# editor and OS files
+.DS_Store
+Thumbs.db

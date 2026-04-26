@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from '@/lib/auth'
 import Feed from '@/components/Feed'
-import TagFilter from '@/components/TagFilter'
+import StoriesBar from '@/components/StoriesBar'
 import { redirect } from 'next/navigation'
 
 export default async function HomePage() {
@@ -11,6 +11,8 @@ export default async function HomePage() {
   if (!session) {
     redirect('/login')
   }
+
+  const currentUserId = session.user.id
 
   const posts = await prisma.post.findMany({
     take: 12,
@@ -27,10 +29,10 @@ export default async function HomePage() {
         },
       },
       reactions: {
+        where: {
+          userId: currentUserId,
+        },
         select: {
-          id: true,
-          createdAt: true,
-          postId: true,
           userId: true,
         },
       },
@@ -44,14 +46,38 @@ export default async function HomePage() {
   })
 
   const nextCursor = posts.length === 12 ? posts[posts.length - 1].id : null
+  const stories = await prisma.story.findMany({
+    where: {
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: [{ createdAt: 'desc' }],
+    include: {
+      author: {
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          avatar: true,
+          image: true,
+        },
+      },
+      views: {
+        where: {
+          viewerId: session.user.id,
+        },
+        select: { id: true },
+      },
+    },
+  })
 
   return (
     <div className="w-full">
-      <div className="sticky top-16 z-40 border-b border-border bg-bg/95 backdrop-blur-xl">
-        <div className="mx-auto max-w-5xl px-4 py-3">
-          <TagFilter />
-        </div>
-      </div>
+      <StoriesBar
+        initialStories={stories.map((story) => ({
+          ...story,
+          seen: story.views.length > 0,
+        }))}
+      />
 
       <Feed 
         initialPosts={posts} 

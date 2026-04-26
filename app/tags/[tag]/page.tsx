@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from '@/lib/auth'
 import Feed from '@/components/Feed'
 
 export default async function TagPage({
@@ -6,6 +7,9 @@ export default async function TagPage({
 }: {
   params: { tag: string }
 }) {
+  const session = await getServerSession()
+  const currentUserId = session?.user.id
+
   const posts = await prisma.post.findMany({
     where: { tags: { has: params.tag } },
     take: 12,
@@ -22,10 +26,12 @@ export default async function TagPage({
         },
       },
       reactions: {
+        where: currentUserId
+          ? {
+              userId: currentUserId,
+            }
+          : undefined,
         select: {
-          id: true,
-          createdAt: true,
-          postId: true,
           userId: true,
         },
       },

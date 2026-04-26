@@ -1,19 +1,7 @@
 import type { Metadata } from 'next'
-import { DM_Mono, Playfair_Display } from 'next/font/google'
 import './global.css'
 import { Providers } from './providers'
 import Nav from '@/components/Nav'
-
-const dmMono = DM_Mono({ 
-  weight: ['400', '500'],
-  subsets: ['latin'],
-  variable: '--font-mono',
-})
-
-const playfair = Playfair_Display({ 
-  subsets: ['latin'],
-  variable: '--font-display',
-})
 
 export const metadata: Metadata = {
   title: 'Devlog! - The Social Platform For Developers',
@@ -38,10 +26,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${dmMono.variable} ${playfair.variable} font-mono bg-bg text-text antialiased`}>
+      <body className="font-mono bg-bg text-text antialiased">
         <Providers>
           <Nav />
-          <main className="min-h-screen pt-16">
+          <main className="min-h-screen pb-20 pt-16 md:pb-0">
             {children}
           </main>
         </Providers>

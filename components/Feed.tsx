@@ -1,13 +1,15 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useSession } from 'next-auth/react'
 import GridItem from './GridItem'
-import Lightbox from './Lightbox'
 import SkeletonGrid from './SkeletonGrid'
 import { PostWithAuthor } from '@/types'
 import { toast } from './Toast'
+
+const Lightbox = dynamic(() => import('./Lightbox'))
 
 interface FeedProps {
   initialPosts: PostWithAuthor[]
@@ -23,6 +25,7 @@ export default function Feed({ initialPosts, initialCursor, tag }: FeedProps) {
   const [hasMore, setHasMore] = useState(!!initialCursor)
   const [selectedPost, setSelectedPost] = useState<PostWithAuthor | null>(null)
   const [reactingPostId, setReactingPostId] = useState<string | null>(null)
+  const shouldReduceMotion = useReducedMotion()
   const observerRef = useRef<IntersectionObserver>()
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
@@ -130,21 +133,24 @@ export default function Feed({ initialPosts, initialCursor, tag }: FeedProps) {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <div className="mx-auto w-full max-w-3xl px-3 py-4 sm:px-4 sm:py-6">
         {posts.length === 0 ? (
           <div className="rounded-xl border border-border bg-surface p-6 text-center text-sm text-muted">
             No posts yet.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
             <AnimatePresence mode="popLayout">
               {posts.map((post, i) => (
                 <motion.div
                   key={post.id}
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.2, delay: i * 0.04 }}
+                  exit={shouldReduceMotion ? undefined : { opacity: 0, y: 8 }}
+                  transition={{
+                    duration: 0.18,
+                    delay: shouldReduceMotion ? 0 : Math.min(i, 5) * 0.02,
+                  }}
                   layoutId={`post-${post.id}`}
                 >
                   <GridItem

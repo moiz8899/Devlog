@@ -20,8 +20,8 @@ const config: Config = {
         red: '#ff4444',
       },
       fontFamily: {
-        mono: ['DM Mono', 'monospace'],
-        display: ['Playfair Display', 'serif'],
+        mono: ['var(--font-mono)'],
+        display: ['var(--font-display)'],
       },
       keyframes: {
         blink: {

@@ -18,7 +18,7 @@ import {
 // Extended types with relations
 export type PostWithAuthor = Post & {
   author: Pick<User, 'id' | 'username' | 'name' | 'avatar' | 'githubUrl' | 'linkedinUrl'>
-  reactions?: Reaction[]
+  reactions?: Pick<Reaction, 'userId'>[]
   _count?: {
     reactions: number
     comments: number
@@ -144,6 +144,7 @@ export interface PostFormData {
   caption?: string
   mediaUrl: string
   mediaUrls?: string[]
+  mediaTypes?: MediaType[]
   mediaType: MediaType
   thumbUrl?: string
   duration?: number

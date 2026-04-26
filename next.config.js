@@ -1,6 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  // Reduce bundle work by only importing used members from heavy libraries.
+  experimental: {
+    optimizePackageImports: [
+      'date-fns',
+      'framer-motion',
+      'react-hook-form',
+      'zod',
+    ],
+  },
   images: {
     domains: ['res.cloudinary.com', 'avatars.githubusercontent.com'],
   },
