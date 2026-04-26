@@ -65,7 +65,7 @@ export default function Nav() {
 
   return (
     <>
-      <nav className="fixed top-0 z-50 w-full bg-surface/80 backdrop-blur-xl border-b border-border">
+      <nav className="sticky top-0 z-50 w-full border-b border-border bg-surface/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-3 sm:px-4">
           <Link href="/" prefetch className="flex items-center gap-1 group">
             <span className="text-xl font-medium">Devlog!</span>

@@ -29,7 +29,7 @@ export default function RootLayout({
       <body className="font-mono bg-bg text-text antialiased">
         <Providers>
           <Nav />
-          <main className="min-h-screen pb-20 pt-16 md:pb-0">
+          <main className="min-h-screen pb-20 md:pb-0">
             {children}
           </main>
         </Providers>
