@@ -83,8 +83,10 @@ Your Next.js app needs to know where to connect for WebSocket. Set the environme
    - `GITHUB_CLIENT_SECRET`: Your GitHub OAuth client secret
    - `NEXT_PUBLIC_SOCKET_URL`: `https://devlog-websocket.onrender.com` ← **Important!**
    - `CLOUDINARY_CLOUD_NAME`: Your Cloudinary cloud name
+   - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`: Same cloud name (optional alias for older builds)
    - `CLOUDINARY_API_KEY`: Your Cloudinary API key
    - `CLOUDINARY_API_SECRET`: Your Cloudinary API secret
+   - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`: Your unsigned upload preset if you use preset-based uploads
 5. Click "Deploy"
 
 ### 2.3 Set Up GitHub OAuth
@@ -128,6 +130,11 @@ DATABASE_URL="your-render-db-url" npx prisma migrate deploy
 | `GITHUB_CLIENT_ID` | Yes | Your GitHub OAuth client ID |
 | `GITHUB_CLIENT_SECRET` | Yes | Your GitHub OAuth client secret |
 | `NEXT_PUBLIC_SOCKET_URL` | Yes | `https://devlog-websocket.onrender.com` |
+| `CLOUDINARY_CLOUD_NAME` | Yes | Your Cloudinary cloud name |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | Recommended | Same Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Yes | Your Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Yes | Your Cloudinary API secret |
+| `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` | Sometimes | Your Cloudinary upload preset |
 
 ---
 

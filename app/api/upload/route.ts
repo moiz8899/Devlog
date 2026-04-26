@@ -6,6 +6,13 @@ type UploadSignatureRequest = {
   includeUploadPreset?: boolean
 }
 
+const readEnv = (value: string | undefined) => {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  return trimmed.replace(/^['"]|['"]$/g, '')
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession()
@@ -16,20 +23,34 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as UploadSignatureRequest
     const includeUploadPreset = body.includeUploadPreset ?? true
 
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-    const apiKey = process.env.CLOUDINARY_API_KEY
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    const cloudName =
+      readEnv(process.env.CLOUDINARY_CLOUD_NAME) ||
+      readEnv(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME)
+    const apiKey = readEnv(process.env.CLOUDINARY_API_KEY)
+    const uploadPreset = readEnv(process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET)
 
     if (!cloudName || !apiKey) {
+      const missing = [
+        !cloudName
+          ? 'CLOUDINARY_CLOUD_NAME or NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME'
+          : null,
+        !apiKey ? 'CLOUDINARY_API_KEY' : null,
+      ].filter(Boolean)
+
       return NextResponse.json(
-        { error: 'Cloudinary is not configured. Missing cloud name or API key.' },
+        {
+          error: `Cloudinary is not configured. Missing ${missing.join(' and ')}.`,
+        },
         { status: 500 }
       )
     }
 
     if (includeUploadPreset && !uploadPreset) {
       return NextResponse.json(
-        { error: 'Cloudinary upload preset is missing.' },
+        {
+          error:
+            'Cloudinary upload preset is missing. Set NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.',
+        },
         { status: 500 }
       )
     }

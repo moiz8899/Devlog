@@ -2,6 +2,13 @@ import { createHash } from 'crypto'
 
 type SignatureParams = Record<string, string | number | undefined>
 
+const readEnv = (value: string | undefined) => {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  return trimmed.replace(/^['"]|['"]$/g, '')
+}
+
 const buildSignatureBase = (params: SignatureParams) => {
   return Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== '')
@@ -11,7 +18,7 @@ const buildSignatureBase = (params: SignatureParams) => {
 }
 
 export const generateSignature = (params: SignatureParams) => {
-  const apiSecret = process.env.CLOUDINARY_API_SECRET
+  const apiSecret = readEnv(process.env.CLOUDINARY_API_SECRET)
 
   if (!apiSecret || apiSecret.includes('*')) {
     throw new Error('Missing or invalid Cloudinary API secret')
