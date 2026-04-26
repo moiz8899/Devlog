@@ -138,7 +138,16 @@ export default function MessageInbox({
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border flex justify-between items-center">
-        <h1 className="text-lg font-medium">messages</h1>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            prefetch
+            className="rounded border border-border px-3 py-1 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
+          >
+            home
+          </Link>
+          <h1 className="text-lg font-medium">messages</h1>
+        </div>
         <button
           onClick={() => setShowNewMessage(true)}
           className="px-3 py-1 bg-accent text-bg rounded text-sm hover:bg-accent/90 transition-colors"

@@ -210,6 +210,12 @@ export default function ConversationView({
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 border-b border-border flex items-center gap-3">
+        <Link
+          href="/"
+          className="rounded border border-border px-3 py-1 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
+        >
+          home
+        </Link>
         <Link href={`/u/${otherParticipant.username}`} className="flex items-center gap-3 group">
           {otherParticipant.avatar ? (
             <Image
