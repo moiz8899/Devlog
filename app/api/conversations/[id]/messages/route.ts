@@ -48,6 +48,14 @@ export async function GET(
             avatar: true,
           },
         },
+        story: {
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            expiresAt: true,
+          },
+        },
       },
     })
 
@@ -68,7 +76,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { body, clientTempId } = await req.json()
+    const { body, clientTempId, storyId, storyMediaUrl } = await req.json()
     if (!body || typeof body !== 'string') {
       return NextResponse.json({ error: 'Message body is required' }, { status: 400 })
     }
@@ -107,6 +115,8 @@ export async function POST(
         conversationId: params.id,
         senderId: session.user.id,
         recipientId: recipient.userId,
+        storyId: typeof storyId === 'string' ? storyId : undefined,
+        storyMediaUrl: typeof storyMediaUrl === 'string' ? storyMediaUrl : undefined,
       },
       include: {
         sender: {
@@ -125,6 +135,14 @@ export async function POST(
             avatar: true,
           },
         },
+        story: {
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            expiresAt: true,
+          },
+        },
       },
     })
 
@@ -138,6 +156,10 @@ export async function POST(
       io.to(`conversation:${params.id}`).emit('new_message', {
         ...message,
         clientTempId: typeof clientTempId === 'string' ? clientTempId : undefined,
+      })
+      io.to(`user:${recipient.userId}`).emit('dm_notification', {
+        type: 'message',
+        conversationId: params.id,
       })
     }
 

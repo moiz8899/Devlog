@@ -105,9 +105,15 @@ export default function MessageInbox({
       }
     }
 
+    const handleDmNotification = () => {
+      void loadConversations()
+    }
+
     socket.on('new_message', handleNewMessage)
+    socket.on('dm_notification', handleDmNotification)
     return () => {
       socket.off('new_message', handleNewMessage)
+      socket.off('dm_notification', handleDmNotification)
     }
   }, [currentUserId, incrementUnread, loadConversations, pathname])
 
@@ -133,6 +139,16 @@ export default function MessageInbox({
 
   if (loading && conversations.length === 0) {
     return <SkeletonMessages />
+  }
+
+  const getConversationPreview = (message: RealtimeMessage) => {
+    if (message.storyId || message.storyMediaUrl || message.story) {
+      return message.senderId === currentUserId
+        ? 'you replied to their story'
+        : 'commented on your story'
+    }
+
+    return `${message.senderId === currentUserId ? 'you: ' : ''}${message.body}`
   }
 
   return (
@@ -212,8 +228,7 @@ export default function MessageInbox({
                     {lastMessage && (
                       <div className="flex justify-between items-center mt-1">
                         <p className="text-sm text-muted truncate max-w-[200px]">
-                          {lastMessage.senderId === currentUserId ? 'you: ' : ''}
-                          {lastMessage.body}
+                          {getConversationPreview(lastMessage)}
                         </p>
                         {unreadCount > 0 && <UnreadBadge count={unreadCount} />}
                       </div>

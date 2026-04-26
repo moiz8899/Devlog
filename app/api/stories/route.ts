@@ -13,6 +13,14 @@ export async function GET() {
     }
 
     const now = new Date()
+    await prisma.story.deleteMany({
+      where: {
+        expiresAt: {
+          lte: now,
+        },
+      },
+    })
+
     const stories = await prisma.story.findMany({
       where: { expiresAt: { gt: now } },
       orderBy: [{ createdAt: 'desc' }],
@@ -21,8 +29,20 @@ export async function GET() {
           select: { id: true, username: true, name: true, avatar: true, image: true },
         },
         views: {
-          where: { viewerId: session.user.id },
-          select: { id: true },
+          select: {
+            id: true,
+            viewerId: true,
+            viewedAt: true,
+            viewer: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                avatar: true,
+                image: true,
+              },
+            },
+          },
         },
       },
     })
@@ -30,7 +50,21 @@ export async function GET() {
     return NextResponse.json({
       data: stories.map((story) => ({
         ...story,
-        seen: story.views.length > 0,
+        seen: story.views.some((view) => view.viewerId === session.user.id),
+        viewCount: story.views.length,
+        viewers:
+          story.authorId === session.user.id
+            ? story.views
+                .filter((view) => view.viewerId !== session.user.id)
+                .map((view) => ({
+                  id: view.viewer.id,
+                  username: view.viewer.username,
+                  name: view.viewer.name,
+                  avatar: view.viewer.avatar,
+                  image: view.viewer.image,
+                  viewedAt: view.viewedAt,
+                }))
+            : [],
       })),
     })
   } catch (error) {
@@ -49,6 +83,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validated = storySchema.parse(body)
     const now = new Date()
+    await prisma.story.deleteMany({
+      where: {
+        expiresAt: {
+          lte: now,
+        },
+      },
+    })
+
     const expiresAt = new Date(now.getTime() + STORY_TTL_HOURS * 60 * 60 * 1000)
     const items = validated.mediaItems?.length
       ? validated.mediaItems
@@ -72,7 +114,14 @@ export async function POST(req: NextRequest) {
       )
     )
 
-    return NextResponse.json({ data: createdStories.map((story) => ({ ...story, seen: false })) })
+    return NextResponse.json({
+      data: createdStories.map((story) => ({
+        ...story,
+        seen: false,
+        viewCount: 0,
+        viewers: [],
+      })),
+    })
   } catch (error) {
     console.error('Failed to create story:', error)
     return NextResponse.json({ error: 'Failed to create story' }, { status: 500 })

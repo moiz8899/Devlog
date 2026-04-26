@@ -14,6 +14,15 @@ type Story = {
   mediaType: 'IMAGE' | 'GIF' | 'VIDEO'
   caption?: string | null
   seen?: boolean
+  viewCount?: number
+  viewers?: Array<{
+    id: string
+    username: string
+    name?: string | null
+    avatar?: string | null
+    image?: string | null
+    viewedAt: string | Date
+  }>
   author: {
     id: string
     username: string

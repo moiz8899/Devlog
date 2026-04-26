@@ -48,6 +48,14 @@ export default async function MessagesPage() {
               avatar: true,
             },
           },
+          story: {
+            select: {
+              id: true,
+              mediaUrl: true,
+              mediaType: true,
+              expiresAt: true,
+            },
+          },
         },
       },
       _count: {

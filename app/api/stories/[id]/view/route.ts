@@ -12,6 +12,22 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const story = await prisma.story.findFirst({
+      where: {
+        id: params.id,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    if (!story) {
+      return NextResponse.json({ error: 'Story not found' }, { status: 404 })
+    }
+
     await prisma.storyView.upsert({
       where: {
         storyId_viewerId: {

@@ -79,6 +79,12 @@ export type ConversationWithParticipants = Conversation & {
 export type MessageWithSender = Message & {
   sender: Pick<User, 'id' | 'username' | 'name' | 'avatar'>
   recipient: Pick<User, 'id' | 'username' | 'name' | 'avatar'>
+  story?: {
+    id: string
+    mediaUrl: string
+    mediaType: MediaType
+    expiresAt: Date
+  } | null
 }
 
 export type ProfileData = User & {

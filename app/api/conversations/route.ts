@@ -44,16 +44,24 @@ export async function GET() {
                 avatar: true,
               },
             },
-            recipient: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                avatar: true,
+              recipient: {
+                select: {
+                  id: true,
+                  username: true,
+                  name: true,
+                  avatar: true,
+                },
+              },
+              story: {
+                select: {
+                  id: true,
+                  mediaUrl: true,
+                  mediaType: true,
+                  expiresAt: true,
+                },
               },
             },
           },
-        },
         _count: {
           select: {
             messages: true,

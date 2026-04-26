@@ -20,6 +20,7 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message, isOwn, showAvatar, otherUser }: MessageBubbleProps) {
   const [showTimestamp, setShowTimestamp] = useState(false)
+  const storyPreviewUrl = message.story?.mediaUrl || message.storyMediaUrl
 
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
@@ -54,7 +55,31 @@ export default function MessageBubble({ message, isOwn, showAvatar, otherUser }:
                 : 'bg-surface-2 text-text rounded-tl-2xl rounded-tr-2xl rounded-br-2xl'
             }`}
           >
-            <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
+            {storyPreviewUrl ? (
+              <div className="mb-2 overflow-hidden rounded-2xl border border-border/60 bg-black/15">
+                <div className="flex items-center gap-3 p-2">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-surface">
+                    <Image
+                      src={storyPreviewUrl}
+                      alt="Story preview"
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium">
+                      {isOwn ? 'you replied to their story' : 'commented on your story'}
+                    </p>
+                    <p className="truncate text-xs text-muted">
+                      {message.body}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
+            )}
             
             {/* Timestamp on hover */}
             {showTimestamp && (

@@ -46,6 +46,14 @@ export default async function ConversationPage({
               avatar: true,
             },
           },
+          story: {
+            select: {
+              id: true,
+              mediaUrl: true,
+              mediaType: true,
+              expiresAt: true,
+            },
+          },
         },
       },
     },
