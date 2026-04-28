@@ -31,37 +31,36 @@ export default function CommentInput({ onSubmit, placeholder }: CommentInputProp
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit()
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void handleSubmit()
     }
   }
 
   return (
     <div className="space-y-2">
-      <textarea
-        ref={textareaRef}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        maxLength={300}
-        className="w-full bg-transparent border-0 border-b border-border focus:border-accent outline-none resize-none py-2 text-sm transition-colors"
-        rows={1}
-      />
-      <div className="flex justify-between items-center text-xs">
-        <span className="text-muted">
-          {body.length}/300 · {submitting ? 'sending...' : 'enter to send, shift+enter new line'}
-        </span>
+      <div className="flex items-end gap-3">
+        <textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          maxLength={300}
+          className="min-h-[42px] flex-1 resize-none rounded-2xl border border-border bg-surface-2 px-4 py-2 text-sm outline-none transition-colors focus:border-accent"
+          rows={1}
+        />
         <button
-          onClick={handleSubmit}
+          type="button"
+          onClick={() => void handleSubmit()}
           disabled={!body.trim() || submitting}
-          className="px-3 py-1 bg-accent text-bg rounded disabled:opacity-50 transition-opacity"
+          className="shrink-0 rounded-full px-2 py-2 text-sm font-medium text-accent transition-colors disabled:text-muted disabled:opacity-50"
         >
-          post
+          {submitting ? '...' : 'post'}
         </button>
       </div>
+      <div className="text-[11px] text-muted">{body.length}/300</div>
     </div>
   )
 }
