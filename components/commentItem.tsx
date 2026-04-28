@@ -28,7 +28,7 @@ export default function CommentItem({
   const isAuthor = currentUserId === comment.authorId
 
   return (
-    <div className={`group ${depth > 0 ? 'border-l-2 border-border pl-3' : ''}`}>
+    <div className={`group ${depth > 0 ? 'border-l border-border pl-3' : ''}`}>
       <div className="flex items-start gap-2">
         <Link href={`/u/${comment.author.username}`} prefetch className="shrink-0">
           {comment.author.avatar ? (
@@ -45,7 +45,7 @@ export default function CommentItem({
         </Link>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/u/${comment.author.username}`}
               prefetch
@@ -56,9 +56,9 @@ export default function CommentItem({
             <span className="text-xs text-muted">{timeAgo(comment.createdAt)}</span>
           </div>
 
-          <p className="text-sm mt-1 break-words">{comment.body}</p>
+          <p className="mt-1 break-words text-sm leading-6">{comment.body}</p>
 
-          <div className="flex items-center gap-4 mt-2">
+          <div className="mt-2 flex items-center gap-4">
             <button
               onClick={onLike}
               className={`text-xs flex items-center gap-1 transition-colors ${

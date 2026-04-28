@@ -250,10 +250,10 @@ export default function Lightbox({
       </button>
 
       <div
-        className="flex min-h-0 flex-1 flex-col pt-14 lg:flex-row lg:pt-0"
+        className="flex h-full min-h-0 flex-1 flex-col pt-14 lg:flex-row lg:pt-0"
         onClick={event => event.stopPropagation()}
       >
-        <div className="flex min-h-[42vh] flex-1 items-center justify-center bg-surface p-3 sm:min-h-[50vh] sm:p-4 lg:min-h-0 lg:p-8">
+        <div className="flex h-[38vh] flex-none items-center justify-center bg-surface p-3 sm:h-[42vh] sm:p-4 lg:min-h-0 lg:flex-1 lg:p-8">
           <motion.div
             layoutId={`post-${post.id}`}
             className="relative flex h-full w-full items-center justify-center"
@@ -348,7 +348,7 @@ export default function Lightbox({
           </motion.div>
         </div>
 
-        <div className="flex h-[58vh] min-h-0 w-full flex-col border-border bg-surface lg:h-auto lg:w-[26rem] lg:border-l">
+        <div className="flex min-h-0 flex-1 w-full flex-col border-border bg-surface lg:h-auto lg:w-[26rem] lg:flex-none lg:border-l">
           <div className="border-b border-border p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <Link href={`/u/${post.author.username}`} className="group flex items-center gap-2">
@@ -404,8 +404,8 @@ export default function Lightbox({
           </div>
 
           <div className="border-b border-border p-3 sm:p-4">
-            <h2 className="mb-2 font-display text-2xl">{post.title}</h2>
-            {post.caption && <p className="mb-3 text-sm text-muted">{post.caption}</p>}
+            <h2 className="mb-2 text-xl font-medium sm:text-2xl">{post.title}</h2>
+            {post.caption && <p className="mb-3 text-sm leading-6 text-muted">{post.caption}</p>}
 
             {post.tags.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
@@ -421,7 +421,7 @@ export default function Lightbox({
               </div>
             )}
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 text-sm">
               <ReactionButton
                 hasReacted={hasReacted}
                 count={post._count?.reactions || 0}

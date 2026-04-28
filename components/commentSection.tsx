@@ -228,11 +228,13 @@ export default function CommentSection({
       <div className="shrink-0 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Comments</h3>
-          <span className="text-xs text-muted">{topLevelComments.length}</span>
+          <span className="text-xs text-muted">
+            {topLevelComments.length} {topLevelComments.length === 1 ? 'comment' : 'comments'}
+          </span>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 space-y-4">
         <AnimatePresence>
           {topLevelComments.map(comment => (
             <motion.div
@@ -269,11 +271,11 @@ export default function CommentSection({
         </AnimatePresence>
 
         {comments.length === 0 && (
-          <div className="py-8 text-center text-muted">
-            no comments yet. be the first to say something.
-          </div>
-        )}
-      </div>
+        <div className="py-8 text-center text-sm text-muted">
+          no comments yet. be the first to say something.
+        </div>
+      )}
+    </div>
 
       {replyingTo && (
         <div className="flex items-center justify-between border-t border-border bg-surface-2 px-4 py-2">
@@ -288,7 +290,7 @@ export default function CommentSection({
         </div>
       )}
 
-      <div className="shrink-0 border-t border-border bg-surface p-4">
+      <div className="shrink-0 border-t border-border bg-surface px-4 py-3">
         <CommentInput
           onSubmit={(body) => handleAddComment(body, replyingTo?.id)}
           placeholder={replyingTo ? 'write your reply...' : 'add a comment...'}
