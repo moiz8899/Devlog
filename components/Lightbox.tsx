@@ -348,7 +348,7 @@ export default function Lightbox({
           </motion.div>
         </div>
 
-        <div className="flex h-[58vh] w-full flex-col border-border bg-surface lg:h-auto lg:w-[26rem] lg:border-l">
+        <div className="flex h-[58vh] min-h-0 w-full flex-col border-border bg-surface lg:h-auto lg:w-[26rem] lg:border-l">
           <div className="border-b border-border p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <Link href={`/u/${post.author.username}`} className="group flex items-center gap-2">
@@ -438,7 +438,7 @@ export default function Lightbox({
             </div>
           </div>
 
-          <div className="flex-1 overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
             <CommentSection
               postId={post.id}
               comments={comments}

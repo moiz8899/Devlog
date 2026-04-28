@@ -223,8 +223,8 @@ export default function CommentSection({
   const topLevelComments = comments.filter(c => !c.parentId)
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
         <AnimatePresence>
           {topLevelComments.map(comment => (
             <motion.div
@@ -284,7 +284,7 @@ export default function CommentSection({
       )}
 
       {/* Comment input */}
-      <div className="border-t border-border p-4">
+      <div className="shrink-0 border-t border-border bg-surface p-4">
         <CommentInput
           onSubmit={(body) => handleAddComment(body, replyingTo?.id)}
           placeholder={replyingTo ? 'write your reply...' : 'add a comment...'}
